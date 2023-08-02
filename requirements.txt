@@ -1,9 +1,13 @@
 torch >= 1.5.1
+torchvision
+
 imageio
 matplotlib
 scipy
-argparse
+scikit-image
+# argparse
 tensorboardX
 blessings
-progressbar2
-path
+# progressbar2
+tqdm
+# path
