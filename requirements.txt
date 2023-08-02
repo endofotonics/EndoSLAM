@@ -5,6 +5,7 @@ imageio
 matplotlib
 scipy
 scikit-image
+# opencv-python
 # argparse
 tensorboardX
 blessings

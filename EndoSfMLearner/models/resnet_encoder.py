@@ -9,9 +9,9 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 import torch
-import torch.nn as nn
-import torchvision.models as models
-import torch.utils.model_zoo as model_zoo
+from torch import nn
+from torchvision import models
+from torch.utils import model_zoo
 
 
 class ResNetMultiImageInput(models.ResNet):
@@ -52,9 +52,15 @@ def resnet_multiimage_input(num_layers, pretrained=False, num_input_images=1):
     model = ResNetMultiImageInput(block_type, blocks, num_input_images=num_input_images)
 
     if pretrained:
-        loaded = model_zoo.load_url(models.resnet.model_urls['resnet{}'.format(num_layers)])
+        # loaded = model_zoo.load_url(models.resnet.model_urls['resnet{}'.format(num_layers)])
+        loaded = torch.hub.load(
+            'pytorch/vision',
+            f'resnet{num_layers}',
+            weights=f'ResNet{num_layers}_Weights.DEFAULT'
+        ).state_dict()
         loaded['conv1.weight'] = torch.cat(
-            [loaded['conv1.weight']] * num_input_images, 1) / num_input_images
+            [loaded['conv1.weight']] * num_input_images, 1
+        ) / num_input_images
         model.load_state_dict(loaded)
     return model
 

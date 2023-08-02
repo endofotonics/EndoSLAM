@@ -24,16 +24,16 @@ parser.add_argument("--sequences", default=['09'], type=str, nargs='*', help="se
 parser.add_argument("--output-dir", default=None, type=str, help="Output directory for saving predictions in a big 3D numpy file")
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 parser.add_argument("--rotation-mode", default='euler', choices=['euler', 'quat'], type=str)
+
 device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 print(f'~~~Using {device}~~~')
-
 
 @torch.no_grad()
 def main():
     args = parser.parse_args()
     from kitti_eval.pose_evaluation_utils import test_framework_KITTI as test_framework
 
-    weights = torch.load(args.pretrained_posenet)
+    weights = torch.load(args.pretrained_posenet, map_location=torch.device(device))
     seq_length = 5
     pose_net = models.PoseResNet(18, False).to(device)
     pose_net.load_state_dict(weights['state_dict'], strict=False)
@@ -41,14 +41,14 @@ def main():
     dataset_dir = Path(args.dataset_dir)
     framework = test_framework(dataset_dir, args.sequences, seq_length)
 
-    print('{} snippets to test'.format(len(framework)))
+    print(f'{len(framework)} snippets to test')
     errors = np.zeros((len(framework), 2), np.float32)
     if args.output_dir is not None:
         output_dir = Path(args.output_dir)
         output_dir.makedirs_p()
         predictions_array = np.zeros((len(framework), seq_length, 3, 4))
 
-    for j, sample in enumerate(tqdm(framework)):
+    for j, sample in tqdm(enumerate(framework)):
         imgs = sample['imgs']
 
         h, w, _ = imgs[0].shape
@@ -58,7 +58,7 @@ def main():
         imgs = [np.transpose(img, (2, 0, 1)) for img in imgs]
 
         squence_imgs = []
-        for i, img in enumerate(imgs):
+        for img in imgs:
             img = torch.from_numpy(img).unsqueeze(0)
             img = ((img/255 - 0.45)/0.225).to(device)
             squence_imgs.append(img)
@@ -72,7 +72,7 @@ def main():
             pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
 
             pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
-            global_pose = global_pose @  np.linalg.inv(pose_mat)
+            global_pose = global_pose @ np.linalg.inv(pose_mat)
             poses.append(global_pose[0:3, :])
 
         final_poses = np.stack(poses, axis=0)

@@ -1,21 +1,20 @@
 import torch
 
-from imageio import imread, imsave
+# from imageio import imread , imsave
+from skimage.io import imread
 from skimage.transform import resize as imresize
 import numpy as np
-from path import Path
+from pathlib import Path
 import argparse
 from tqdm import tqdm
 
 from inverse_warp import pose_vec2mat
-from scipy.ndimage.interpolation import zoom
+# from scipy.ndimage import zoom
 
 from inverse_warp import *
 
 import models
-from utils import tensor2array
-
-import cv2
+# from utils import tensor2array
 
 parser = argparse.ArgumentParser(description='Script for visualizing depth map and masks',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -30,8 +29,8 @@ parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type
 parser.add_argument("--rotation-mode", default='euler', choices=['euler', 'quat'], type=str)
 
 parser.add_argument("--sequence", default='09', type=str, help="sequence to test")
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
+device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+print(f'~~~Using {device}~~~')
 
 def load_tensor_image(filename, args):
     img = imread(filename).astype(np.float32)
@@ -47,19 +46,20 @@ def load_tensor_image(filename, args):
 def main():
     args = parser.parse_args()
 
-    weights_pose = torch.load(args.pretrained_posenet)
+    weights_pose = torch.load(args.pretrained_posenet, map_location=torch.device(device))
     pose_net = models.PoseResNet().to(device)
     pose_net.load_state_dict(weights_pose['state_dict'], strict=False)
     pose_net.eval()
 
     image_dir = Path(args.dataset_dir)
     output_dir = Path(args.output_dir)
-    output_dir.makedirs_p()
+    output_dir.mkdir(exist_ok=True)
 
-    test_files = sum([image_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])
-    test_files.sort()
+    test_files = sorted(
+        sum([list(image_dir.glob(f'*.{ext}')) for ext in args.img_exts], [])
+    )
 
-    print('{} files to test'.format(len(test_files)))
+    print(f'{len(test_files)} files to test')
 
     global_pose = np.eye(4)
     poses = [global_pose[0:3, :].reshape(1, 12)]
@@ -75,7 +75,7 @@ def main():
 
         pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
         pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
-        global_pose = global_pose @  np.linalg.inv(pose_mat)
+        global_pose = global_pose @ np.linalg.inv(pose_mat)
 
         poses.append(global_pose[0:3, :].reshape(1, 12))
 
@@ -83,7 +83,7 @@ def main():
         tensor_img1 = tensor_img2
 
     poses = np.concatenate(poses, axis=0)
-    filename = Path(args.output_dir + args.sequence + ".txt")
+    filename = output_dir/(args.sequence + ".txt")
     np.savetxt(filename, poses, delimiter=' ', fmt='%1.8e')
 
 
