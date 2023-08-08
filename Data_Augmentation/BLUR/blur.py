@@ -33,15 +33,15 @@ img_cntr = 0
 
 if blur_type == "Gaussian":
     for frame in sorted(glob.glob(input_path)):   
-	img = cv2.imread(frame) 
-	gauss_blured = cv2_gaussianblur_multiple(img) 
+        img = cv2.imread(frame) 
+        gauss_blured = cv2_gaussianblur_multiple(img) 
         cv2.imwrite(output_folder_name+str(img_cntr)+".png",gauss_blured) 
         img_cntr += 1
 
 elif blur_type == "Blur":
     for frame in sorted(glob.glob(input_path)):   
-	img = cv2.imread(frame)  
-	blured = cv2_blur_multiple(img) 
+        img = cv2.imread(frame)  
+        blured = cv2_blur_multiple(img) 
         cv2.imwrite(output_folder_name+str(img_cntr)+".png", blured) 
         img_cntr += 1
 else:
