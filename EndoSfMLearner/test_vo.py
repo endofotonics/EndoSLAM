@@ -28,7 +28,7 @@ parser.add_argument("--output-dir", type=str, help="Output directory for saving 
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 parser.add_argument("--rotation-mode", default='euler', choices=['euler', 'quat'], type=str)
 
-parser.add_argument("--sequence", default='09', type=str, help="sequence to test")
+# parser.add_argument("--sequence", default='09', type=str, help="sequence to test")
 device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 print(f'~~~Using {device}~~~')
 
@@ -83,8 +83,10 @@ def main():
         tensor_img1 = tensor_img2
 
     poses = np.concatenate(poses, axis=0)
-    filename = output_dir/(args.sequence + ".txt")
+    # filename = output_dir/(args.sequence + ".txt")
+    filename = output_dir/(image_dir.name + '.txt')
     np.savetxt(filename, poses, delimiter=' ', fmt='%1.8e')
+    print('Exported as', filename.absolute())
 
 
 if __name__ == '__main__':

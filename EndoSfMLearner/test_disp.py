@@ -1,12 +1,14 @@
 import torch
+# from imageio import imread
+from skimage.io import imread
 from skimage.transform import resize as imresize
-from imageio import imread
 import numpy as np
-from path import Path
+# from path import Path
+from pathlib import Path
 import argparse
 from tqdm import tqdm
 import models
-from torchvision import transforms
+# from torchvision import transforms
 import time
 
 parser = argparse.ArgumentParser(description='Script for DispNet testing with corresponding groundTruth',
@@ -21,7 +23,8 @@ parser.add_argument("--dataset-list", default=None, type=str, help="Dataset list
 parser.add_argument("--output-dir", default=None, required=True, type=str, help="Output directory for saving predictions in a big 3D numpy file")
 parser.add_argument('--resnet-layers', required=False, type=int, default=18, choices=[18, 50], help='depth network architecture.')
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+print(f'~~~Using {device}~~~')
 
 def load_tensor_image(filename, args):
     img = imread(filename).astype(np.float32)
@@ -37,36 +40,39 @@ def main():
     args = parser.parse_args()
 
     disp_net = models.DispResNet(args.resnet_layers, False).to(device)
-    weights = torch.load(args.pretrained_dispnet)
+    weights = torch.load(args.pretrained_dispnet, map_location=device)
     disp_net.load_state_dict(weights['state_dict'])
     disp_net.eval()
 
     dataset_dir = Path(args.dataset_dir)
-
+    img_exts = ['png', 'jpg', 'tif', 'bmp']
 
     if args.dataset_list is not None:
         with open(args.dataset_list, 'r') as f:
             test_files = list(f.read().splitlines())
     else:
-        test_files=sorted(dataset_dir.files('*.png'))
+        test_files = sorted(list(dataset_dir.glob('*.jpg')))
+        test_files = sorted(
+            sum([list(dataset_dir.glob(f'*.{ext}')) for ext in img_exts], [])
+        )
 
     print('{} files to test'.format(len(test_files)))
   
     output_dir = Path(args.output_dir)
-    output_dir.makedirs_p()
+    output_dir.mkdir(exist_ok=True)
 
     avg_time = 0
-    for j in tqdm(range(len(test_files))):
-        tgt_img = load_tensor_image(test_files[j], args)
+    for j, test_file in tqdm(enumerate(test_files)):
+        tgt_img = load_tensor_image(test_file, args)
         # tgt_img = load_tensor_image( dataset_dir + test_files[j], args)
 
         # compute speed
-        torch.cuda.synchronize()
+        # torch.cuda.synchronize()
         t_start = time.time()
 
         output = disp_net(tgt_img)
 
-        torch.cuda.synchronize()
+        # torch.cuda.synchronize()
         elapsed_time = time.time() - t_start
         
         avg_time += elapsed_time
